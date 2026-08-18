@@ -34,7 +34,7 @@ def _assert_public_host(url: str) -> None:
             raise ValueError("Private or local product image URLs are not allowed")
 
 
-def _download_image(url: str, output_path: Path) -> bool:
+def _download_image(url: str, output_path: Path) -> Path | None:
     _assert_public_host(url)
     response = requests.get(
         url,
@@ -48,7 +48,7 @@ def _download_image(url: str, output_path: Path) -> bool:
 
     content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
     if content_type not in _ALLOWED_TYPES:
-        return False
+        return None
 
     content = bytearray()
     for chunk in response.iter_content(64 * 1024):
@@ -56,16 +56,28 @@ def _download_image(url: str, output_path: Path) -> bool:
             continue
         content.extend(chunk)
         if len(content) > MAX_IMAGE_BYTES:
-            return False
+            return None
 
     suffix = _ALLOWED_TYPES[content_type]
     target = output_path.with_suffix(suffix)
     target.write_bytes(bytes(content))
 
-    # Decode once so corrupt or non-image responses never enter the video pipeline.
-    with Image.open(target) as image:
-        image.verify()
-    return True
+    # Normalize the decoded image into a real file matching its extension. This is
+    # important for WebP CDNs that would otherwise leave WebP bytes in a .jpg file.
+    try:
+        with Image.open(target) as image:
+            image.load()
+            if suffix == ".png":
+                normalized = image.convert("RGBA") if image.mode not in {"RGB", "RGBA"} else image.copy()
+                normalized.save(target, format="PNG")
+            else:
+                normalized = image.convert("RGB")
+                normalized.save(target, format="JPEG", quality=95)
+    except Exception:
+        target.unlink(missing_ok=True)
+        return None
+
+    return target
 
 
 def prepare_product_assets(image_urls: list[str], max_images: int = 8) -> list[MaterialInfo]:
@@ -80,9 +92,7 @@ def prepare_product_assets(image_urls: list[str], max_images: int = 8) -> list[M
         seen.add(image_url)
         stem = target_dir / f"product-{uuid4().hex}"
         try:
-            if not _download_image(image_url, stem):
-                continue
-            saved = next(target_dir.glob(f"{stem.name}.*"), None)
+            saved = _download_image(image_url, stem)
             if saved is None:
                 continue
             materials.append(
