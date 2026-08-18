@@ -42,21 +42,14 @@ def _visual_integrity(path: str, max_black_seconds: float, max_freeze_seconds: f
     if result.returncode not in {0, 1}:
         raise RenderQAError(result.stderr.strip() or "Visual integrity check failed")
 
-    black_durations = []
-    freeze_durations = []
-    for match in re.finditer(
-        r"black_start:([0-9.]+).*?black_end:([0-9.]+).*?black_duration:([0-9.]+)",
-        result.stderr or "",
-        re.DOTALL,
-    ):
-        black_durations.append(float(match.group(3)))
-    for match in re.finditer(
-        r"freeze_start:([0-9.]+).*?freeze_end:([0-9.]+)",
-        result.stderr or "",
-        re.DOTALL,
-    ):
-        freeze_durations.append(max(0.0, float(match.group(2)) - float(match.group(1))))
-
+    black_durations = [
+        float(value)
+        for value in re.findall(r"black_duration:([0-9.]+)", result.stderr or "")
+    ]
+    freeze_durations = [
+        float(value)
+        for value in re.findall(r"freeze_duration:([0-9.]+)", result.stderr or "")
+    ]
     longest_black = max(black_durations, default=0.0)
     longest_freeze = max(freeze_durations, default=0.0)
     if longest_black > max_black_seconds:
