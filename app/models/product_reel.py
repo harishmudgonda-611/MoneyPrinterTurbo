@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 from app.models.product import ProductData
 from app.models.creative import CreativePlan
+from app.models.reference_video import ReferenceVideoAnalysis
 
 
 class ProductReelGenerateRequest(BaseModel):
@@ -18,6 +19,7 @@ class ProductReelGenerateRequest(BaseModel):
     bgm_volume: float = Field(default=0.2, ge=0.0, le=1.0)
     include_price: bool = True
     include_cta: bool = True
+    reference_analysis: ReferenceVideoAnalysis | None = None
 
 
 class ProductReelGenerateResponse(BaseModel):
@@ -27,3 +29,4 @@ class ProductReelGenerateResponse(BaseModel):
     creative: CreativePlan
     renderer: str = "moneyprinterturbo"
     aspect_ratio: str = "9:16"
+    reference_used: bool = False
