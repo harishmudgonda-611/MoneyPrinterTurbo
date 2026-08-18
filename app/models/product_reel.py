@@ -12,7 +12,7 @@ class ProductReelGenerateRequest(BaseModel):
     duration_seconds: int = Field(default=20, ge=8, le=60)
     tone: str = Field(default="high-energy, trustworthy, social-first", min_length=3, max_length=100)
     platform: Literal["instagram", "youtube_shorts", "tiktok"] = "instagram"
-    video_source: Literal["pexels", "pixabay", "coverr"] = "pexels"
+    video_source: Literal["product_first", "pexels", "pixabay", "coverr"] = "product_first"
     voice_name: str = Field(default="", max_length=120)
     voice_rate: float = Field(default=1.0, ge=0.5, le=2.0)
     bgm_volume: float = Field(default=0.2, ge=0.0, le=1.0)
