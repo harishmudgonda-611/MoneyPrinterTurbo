@@ -6,7 +6,6 @@ from app.models.product import ProductData
 from app.models.product_reel import ProductReelGenerateRequest
 from app.models.schema import TaskVideoRequest, VideoAspect, VideoConcatMode
 from app.services import state as sm
-from app.services import task as tm
 from app.services.creative_orchestrator import generate_creative
 from app.services.product_assets import prepare_product_assets
 from app.services.product_intelligence import analyze_product_url
