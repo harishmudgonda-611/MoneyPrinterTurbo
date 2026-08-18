@@ -1,5 +1,6 @@
 """Download and normalize product images for the local MoneyPrinterTurbo renderer."""
 
+import io
 import ipaddress
 import socket
 from pathlib import Path
@@ -60,19 +61,19 @@ def _download_image(url: str, output_path: Path) -> Path | None:
 
     suffix = _ALLOWED_TYPES[content_type]
     target = output_path.with_suffix(suffix)
-    target.write_bytes(bytes(content))
 
-    # Normalize the decoded image into a real file matching its extension. This is
-    # important for WebP CDNs that would otherwise leave WebP bytes in a .jpg file.
     try:
-        with Image.open(target) as image:
+        with Image.open(io.BytesIO(bytes(content))) as image:
             image.load()
             if suffix == ".png":
-                normalized = image.convert("RGBA") if image.mode not in {"RGB", "RGBA"} else image.copy()
-                normalized.save(target, format="PNG")
+                normalized = image.convert("RGBA")
+                buffer = io.BytesIO()
+                normalized.save(buffer, format="PNG")
             else:
                 normalized = image.convert("RGB")
-                normalized.save(target, format="JPEG", quality=95)
+                buffer = io.BytesIO()
+                normalized.save(buffer, format="JPEG", quality=95)
+        target.write_bytes(buffer.getvalue())
     except Exception:
         target.unlink(missing_ok=True)
         return None
