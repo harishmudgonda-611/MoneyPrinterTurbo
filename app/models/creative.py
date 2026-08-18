@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, HttpUrl
 
 from app.models.product import ProductData
+from app.models.reference_video import ReferenceVideoAnalysis
 
 
 class CreativeGenerateRequest(BaseModel):
@@ -13,6 +14,7 @@ class CreativeGenerateRequest(BaseModel):
     platform: Literal["instagram", "youtube_shorts", "tiktok"] = "instagram"
     include_price: bool = True
     include_cta: bool = True
+    reference_analysis: ReferenceVideoAnalysis | None = None
 
 
 class CreativeScene(BaseModel):
