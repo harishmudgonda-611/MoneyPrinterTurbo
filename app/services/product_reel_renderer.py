@@ -10,6 +10,7 @@ from app.services import task as tm
 from app.services.creative_orchestrator import generate_creative
 from app.services.product_assets import prepare_product_assets
 from app.services.product_intelligence import analyze_product_url
+from app.services.reel_task_runner import start_reel_task
 from app.utils import utils
 
 
@@ -89,5 +90,5 @@ def queue_product_reel(body: ProductReelGenerateRequest) -> tuple[str, ProductDa
         creative_hook=creative.hook,
         creative_concept=creative.concept,
     )
-    task_manager.add_task(tm.start, task_id=task_id, params=params, stop_at="video")
+    task_manager.add_task(start_reel_task, task_id=task_id, params=params, stop_at="video")
     return task_id, product, creative
