@@ -66,7 +66,7 @@ def _detect_cuts(video_path: str, duration: float) -> list[float]:
 def _pacing(average_shot: float) -> str:
     if average_shot <= 1.5:
         return "very_fast"
-    if average_shot <= 2.8:
+    if average_shot <= 3.5:
         return "fast"
     if average_shot <= 5.0:
         return "medium"
