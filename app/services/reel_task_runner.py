@@ -10,6 +10,15 @@ from app.services import state as sm
 from app.services import task as task_service
 
 
+def _patch_task(task_id: str, **fields: Any) -> None:
+    """Merge Reel metadata without replacing the existing MPT task output."""
+    patch = getattr(sm.state, "patch_task", None)
+    if callable(patch) and patch(task_id, **fields):
+        return
+    # Compatibility fallback for state implementations without patch_task.
+    sm.state.update_task(task_id, **fields)
+
+
 def start_reel_task(task_id: str, params: Any, stop_at: str = "video", **kwargs):
     """Execute the normal MPT task, then validate final Reel MP4s before success."""
     result = task_service.start(task_id, params, stop_at=stop_at, **kwargs)
@@ -23,8 +32,6 @@ def start_reel_task(task_id: str, params: Any, stop_at: str = "video", **kwargs)
     if not video_paths:
         return result
 
-    # Prefer the narration duration already returned by the MPT task. If unavailable,
-    # the validator still performs all structural checks except duration matching.
     expected_duration = result.get("audio_duration")
     try:
         expected_duration = float(expected_duration) if expected_duration else None
@@ -40,7 +47,6 @@ def start_reel_task(task_id: str, params: Any, stop_at: str = "video", **kwargs)
             )
         except render_qa.RenderQAError as exc:
             failure = {
-                "task_id": task_id,
                 "state": const.TASK_STATE_FAILED,
                 "progress": int(result.get("progress", 100) or 100),
                 "failed_stage": "validation",
@@ -48,15 +54,18 @@ def start_reel_task(task_id: str, params: Any, stop_at: str = "video", **kwargs)
                 "validation_video_index": index,
                 "validation_path": video_path,
             }
-            sm.state.update_task(task_id, **failure)
-            return failure
+            _patch_task(task_id, **failure)
+            result.update(failure)
+            return result
         reports.append({"video_index": index, **report})
 
-    sm.state.update_task(
+    _patch_task(
         task_id,
         state=const.TASK_STATE_COMPLETE,
         progress=100,
         render_qa=reports,
     )
     result["render_qa"] = reports
+    result["state"] = const.TASK_STATE_COMPLETE
+    result["progress"] = 100
     return result
