@@ -7,11 +7,11 @@ from app.models.reference_reel import ReferenceGuidedGenerateRequest
 from app.models.creative import CreativeGenerateRequest
 from app.models.schema import TaskVideoRequest, VideoAspect, VideoConcatMode
 from app.services import state as sm
-from app.services import task as tm
 from app.services.product_assets import prepare_product_assets
 from app.services.product_intelligence import analyze_product_url
 from app.services.reference_creative_bridge import generate_reference_guided_creative
 from app.services.reference_video import _run_ffprobe
+from app.services.reel_task_runner import start_reel_task
 from app.utils import utils
 
 
@@ -109,5 +109,5 @@ def queue_reference_guided_reel(body: ReferenceGuidedGenerateRequest):
         reference_pacing=reference.pacing,
         reference_shot_count=reference.shot_count,
     )
-    task_manager.add_task(tm.start, task_id=task_id, params=params, stop_at="video")
+    task_manager.add_task(start_reel_task, task_id=task_id, params=params, stop_at="video")
     return task_id, product, creative, reference
