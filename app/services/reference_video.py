@@ -1,7 +1,6 @@
 """Local reference-video inspection without sending the source video anywhere."""
 
 import json
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -53,7 +52,6 @@ def _detect_cuts(video_path: str, duration: float) -> list[float]:
         result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=90)
     except (OSError, subprocess.SubprocessError):
         return []
-    # showinfo emits pts_time in stderr. Keep only valid timestamps and cap pathological output.
     values = []
     for match in re.finditer(r"pts_time:([0-9]+(?:\.[0-9]+)?)", result.stderr or ""):
         try:
