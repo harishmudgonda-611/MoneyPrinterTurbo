@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
+
+from app.utils import utils
 
 
 class RenderQAError(RuntimeError):
@@ -24,7 +27,55 @@ def _probe(path: str) -> dict:
         raise RenderQAError("Invalid ffprobe response") from exc
 
 
-def validate_render(path: str, expected_duration: float | None = None) -> dict:
+def _visual_integrity(path: str, max_black_seconds: float, max_freeze_seconds: float) -> dict:
+    """Detect long black/frozen stretches without decoding the entire video in Python."""
+    command = [
+        utils.get_ffmpeg_binary(),
+        "-hide_banner",
+        "-i", path,
+        "-vf", "blackdetect=d=0.5:pix_th=0.10,freezedetect=n=-60dB:d=1.5",
+        "-an",
+        "-f", "null",
+        "-",
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode not in {0, 1}:
+        raise RenderQAError(result.stderr.strip() or "Visual integrity check failed")
+
+    black_durations = []
+    freeze_durations = []
+    for match in re.finditer(
+        r"black_start:([0-9.]+).*?black_end:([0-9.]+).*?black_duration:([0-9.]+)",
+        result.stderr or "",
+        re.DOTALL,
+    ):
+        black_durations.append(float(match.group(3)))
+    for match in re.finditer(
+        r"freeze_start:([0-9.]+).*?freeze_end:([0-9.]+)",
+        result.stderr or "",
+        re.DOTALL,
+    ):
+        freeze_durations.append(max(0.0, float(match.group(2)) - float(match.group(1))))
+
+    longest_black = max(black_durations, default=0.0)
+    longest_freeze = max(freeze_durations, default=0.0)
+    if longest_black > max_black_seconds:
+        raise RenderQAError(f"Excessive black frame duration: {longest_black:.2f}s")
+    if longest_freeze > max_freeze_seconds:
+        raise RenderQAError(f"Excessive frozen frame duration: {longest_freeze:.2f}s")
+
+    return {
+        "longest_black_seconds": longest_black,
+        "longest_freeze_seconds": longest_freeze,
+    }
+
+
+def validate_render(
+    path: str,
+    expected_duration: float | None = None,
+    max_black_seconds: float = 1.0,
+    max_freeze_seconds: float = 2.0,
+) -> dict:
     """Validate a finished Reel before exposing it as a successful result."""
     file_path = Path(path)
     if not file_path.is_file() or file_path.stat().st_size == 0:
@@ -60,6 +111,7 @@ def validate_render(path: str, expected_duration: float | None = None) -> dict:
     if fps in {"0/0", ""}:
         raise RenderQAError("Invalid video frame rate")
 
+    visual = _visual_integrity(str(file_path), max_black_seconds, max_freeze_seconds)
     return {
         "passed": True,
         "path": str(file_path),
@@ -72,4 +124,5 @@ def validate_render(path: str, expected_duration: float | None = None) -> dict:
         "fps": fps,
         "video_codec": video.get("codec_name"),
         "audio_codec": audio.get("codec_name"),
+        **visual,
     }
