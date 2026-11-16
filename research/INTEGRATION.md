@@ -15,4 +15,4 @@ For each source retain URL, title, publisher, publication date if present, retri
 Research is opt-in and read-only. Respect robots.txt, terms, copyright, rate limits and source attribution. No authentication, paywall or anti-bot bypass. Limit domains, concurrency, response size and timeouts. Do not download or reuse copyrighted footage without rights; source collection does not grant media reuse rights.
 
 ## Delivery status
-This branch adds no dependencies and does not change the video pipeline. Implement adapters behind an optional feature flag with fixture-based tests before runtime integration.
+This branch adds a dependency-free offline HTML normalizer at `research/normalize.py` with regression tests at `tests/test_research_normalize.py`. It does not fetch URLs or crawl and does not change the video pipeline. Network adapters remain optional follow-up work behind explicit source allowlists and fixture-based tests.
